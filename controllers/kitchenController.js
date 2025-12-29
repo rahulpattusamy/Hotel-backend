@@ -72,29 +72,47 @@ exports.deleteCategory = (req, res) => {
 // ================= KITCHEN ORDERS =================
 // controllers/kitchenController.js
 exports.getKitchenOrders = (req, res) => {
-  const query = `
+  const { booking_id } = req.query;
+
+  let query = `
     SELECT 
       ko.id,
-      ko.quantity,
-      ko.status,
-      ko.created_at,
-      ko.booking_id,
       r.room_number,
       c.name AS customer_name,
       mi.name AS item_name,
-      mi.price AS price
+      mi.price,
+      ko.quantity,
+      (mi.price * ko.quantity) AS total,
+      ko.status,
+      ko.booking_id
     FROM kitchen_orders ko
     JOIN bookings b ON ko.booking_id = b.id
-    JOIN rooms r ON ko.room_id = r.id
+    JOIN rooms r ON b.room_id = r.id
     JOIN customers c ON b.customer_id = c.id
     JOIN menu_items mi ON ko.item_id = mi.id
-    ORDER BY ko.created_at DESC
+    WHERE b.status = 'Checked-in'
+      AND ko.status != 'Settled'
   `;
-  db.all(query, [], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
+
+  const params = [];
+
+  // ✅ FILTER ONLY THIS BOOKING DURING CHECKOUT
+  if (booking_id) {
+    query += ` AND ko.booking_id = ?`;
+    params.push(booking_id);
+  }
+
+  query += ` ORDER BY ko.created_at DESC`;
+
+  db.all(query, params, (err, rows) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Failed to fetch kitchen orders" });
+    }
     res.json(rows);
   });
 };
+
 
 
 exports.createKitchenOrder = (req, res) => {

@@ -4,6 +4,8 @@ const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
 const db = require("./db/database");
+const cookieParser = require("cookie-parser");
+
 require("dotenv").config();
 
 // Import routes
@@ -15,13 +17,21 @@ const bookingsRouter = require("./routes/bookings");
 const roomsRoutes = require("./routes/roomsRoutes");
 const kitchenRoutes = require("./routes/kitchenRoutes");
 const addonsRoutes = require("./routes/addons");
+const expenseRoutes = require("./routes/expense");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true, 
+  })
+);
+
 app.use(express.json());
+app.use(cookieParser());
 
 // Initialize DB schema (run once)
 const schemaPath = path.join(__dirname, "db/schema.sql");
@@ -44,6 +54,8 @@ app.use("/api/kitchen", kitchenRoutes);
 app.use("/api/addons", addonsRoutes);
 app.use("/api/billings", billingRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/expenses", expenseRoutes);
+app.use("/api/auth", require("./routes/auth"));
 
 // Generic/catch-all API routes (optional)
 app.use("/api", routes);

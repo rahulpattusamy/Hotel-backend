@@ -68,6 +68,7 @@ router.get("/", (req, res) => {
       b.check_out,
       b.status,
       b.price,
+      b.add_ons,          -- ✅ ADD THIS
       c.name AS customer_name,
       c.contact AS customer_contact,
       r.room_number,
@@ -93,6 +94,7 @@ router.get("/:id", (req, res) => {
       b.check_out,
       b.status,
       b.price,
+      b.add_ons,          -- ✅ ADD THIS
       c.name AS customer_name,
       c.contact AS customer_contact,
       r.room_number,
@@ -119,6 +121,7 @@ router.post("/", async (req, res) => {
       check_out, // optional
       status,
       price,
+      add_ons, 
     } = req.body;
 
     if (!booking_id || !customer_id || !room_id || !price) {
@@ -135,8 +138,8 @@ router.post("/", async (req, res) => {
 
     const insertQuery = `
       INSERT INTO bookings 
-        (booking_id, customer_id, room_id, check_in, check_out, status, price)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+        (booking_id, customer_id, room_id, check_in, check_out, status, price, add_ons)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
     const bookingStatus = status || "Confirmed";
 
@@ -149,6 +152,7 @@ router.post("/", async (req, res) => {
       checkOutStr,
       bookingStatus,
       price,
+      JSON.stringify(add_ons || []), 
     ]);
 
     // Update room status based on booking status
