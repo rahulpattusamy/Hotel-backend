@@ -77,30 +77,38 @@ exports.getKitchenOrders = (req, res) => {
   let query = `
     SELECT 
       ko.id,
+      ko.booking_id,
+      ko.room_id,
+
       r.room_number,
+
+      c.id AS customer_id,
       c.name AS customer_name,
+
+      mi.id AS item_id,
       mi.name AS item_name,
       mi.price,
+
       ko.quantity,
       (mi.price * ko.quantity) AS total,
-      ko.status,
-      ko.booking_id
+      ko.status
+
     FROM kitchen_orders ko
-    JOIN bookings b ON ko.booking_id = b.id
+    JOIN bookings b ON ko.booking_id = b.booking_id
     JOIN rooms r ON b.room_id = r.id
     JOIN customers c ON b.customer_id = c.id
     JOIN menu_items mi ON ko.item_id = mi.id
+
     WHERE b.status = 'Checked-in'
       AND ko.status != 'Settled'
   `;
 
   const params = [];
 
-  // ✅ FILTER ONLY THIS BOOKING DURING CHECKOUT
-  if (booking_id) {
-    query += ` AND ko.booking_id = ?`;
-    params.push(booking_id);
-  }
+  // if (booking_id) {
+  //   query += ` AND ko.booking_id = ?`;
+  //   params.push(booking_id);
+  // }
 
   query += ` ORDER BY ko.created_at DESC`;
 
@@ -117,15 +125,23 @@ exports.getKitchenOrders = (req, res) => {
 
 exports.createKitchenOrder = (req, res) => {
   const { room_id, booking_id, item_id, quantity } = req.body;
+
   db.run(
-    "INSERT INTO kitchen_orders (room_id, booking_id, item_id, quantity, status) VALUES (?, ?, ?, ?, ?)",
+    `INSERT INTO kitchen_orders 
+     (room_id, booking_id, item_id, quantity, status)
+     VALUES (?, ?, ?, ?, ?)`,
     [room_id, booking_id, item_id, quantity, "Pending"],
     function (err) {
-      if (err) return res.status(500).json({ error: err.message });
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ error: err.message });
+      }
       res.json({ id: this.lastID, message: "Order added" });
     }
   );
 };
+
+
 
 
 exports.updateKitchenOrderStatus = (req, res) => {

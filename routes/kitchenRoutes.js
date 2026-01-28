@@ -12,7 +12,7 @@ router.delete("/items/:id", kitchenController.deleteMenuItem);
 // CATEGORIES
 router.get("/categories", kitchenController.getCategories);
 router.post("/categories", kitchenController.createCategory);
-
+router.delete("/categories/:id", kitchenController.deleteCategory);
 // KITCHEN ORDERS
 router.get("/orders", kitchenController.getKitchenOrders);
 router.post("/orders", kitchenController.createKitchenOrder);

@@ -15,23 +15,26 @@ router.get("/profit", billingController.getProfit);
 ================================ */
 router.get("/", (req, res) => {
   const query = `
-  SELECT 
-  b.id AS bill_id,
-  b.booking_id AS booking_db_id,
-  bk.booking_id AS booking_code,
-  c.name AS customer_name,
-  b.room_id,
-  b.total_amount,
-  b.created_at
-FROM billings b
-JOIN bookings bk ON b.booking_id = bk.id
-LEFT JOIN customers c ON b.customer_id = c.id
-ORDER BY b.created_at DESC;`;
+    SELECT 
+      b.id AS bill_id,
+      b.booking_id,
+      b.customer_id,
+      c.name AS customer_name,
+      b.room_id,
+      b.advance_paid,
+      b.total_amount,
+      b.created_at,
+      b.billed_by_name,
+      b.billed_by_role
+    FROM billings b
+    JOIN customers c ON b.customer_id = c.id
+    ORDER BY b.created_at DESC
+  `;
 
   db.all(query, [], (err, rows) => {
     if (err) {
-      console.error("FETCH BILLINGS ERROR:", err);
-      return res.status(500).json(err);
+      console.error("❌ FETCH BILLS FAILED:", err);
+      return res.status(500).json({ error: err.message });
     }
     res.json(rows);
   });
@@ -66,43 +69,62 @@ router.get("/:id", (req, res) => {
         return res.status(404).json({ error: "Bill not found" });
       }
 
-      // ROOM ADD-ONS
+      console.log("✅ BILL FOUND:", bill.id);
+
+      /* ===============================
+        ADD-ONS (FROM billings.add_ons)
+      ================================ */
       let roomAddOns = [];
-      if (bill.room_add_ons) {
-        try {
-          const parsed = JSON.parse(bill.room_add_ons);
-          if (typeof parsed === "object") {
-            roomAddOns = Object.entries(parsed)
-              .filter(([_, price]) => Number(price) > 0)
-              .map(([name, price]) => ({
-                name,
+
+      try {
+        if (bill.add_ons) {
+          const parsed =
+            typeof bill.add_ons === "string"
+              ? JSON.parse(bill.add_ons)
+              : bill.add_ons;
+
+          roomAddOns = Array.isArray(parsed)
+            ? parsed.map(a => ({
+                name: a.description,
                 qty: 1,
-                price: Number(price),
-              }));
-          }
-        } catch (e) {
-          console.error("❌ ROOM ADD-ONS PARSE FAILED:", e);
+                price: Number(a.amount) || 0
+              }))
+            : [];
         }
+      } catch (e) {
+        console.error("❌ ADD-ONS PARSE FAILED:", bill.add_ons);
+        roomAddOns = [];
       }
 
-      // KITCHEN ORDERS
+      console.log("✅ ADD-ONS SENT TO FRONTEND:", roomAddOns);
+
+
+      /* ===============================
+         KITCHEN ORDERS
+      ================================ */
       db.all(
-        `
-        SELECT 
-          mi.name AS item_name,
-          ko.quantity,
-          mi.price
-        FROM kitchen_orders ko
-        JOIN menu_items mi ON ko.item_id = mi.id
-        WHERE ko.booking_id = ?
-        `,
-        [bill.booking_id],
+      `
+      SELECT 
+        mi.name AS item_name,
+        ko.quantity,
+        mi.price
+      FROM kitchen_orders ko
+      JOIN menu_items mi ON ko.item_id = mi.id
+      WHERE ko.booking_id = ?
+      `,
+      [bill.booking_id], // ✅ STRING
+
         (err, kitchenOrders) => {
           if (err) {
             console.error("❌ KITCHEN ORDERS FAILED:", err);
             return res.status(500).json({ error: err.message });
           }
 
+          console.log("✅ KITCHEN ORDERS OK");
+
+          /* ===============================
+             FINAL RESPONSE
+          ================================ */
           res.json({
             ...bill,
             add_ons: roomAddOns,
@@ -113,5 +135,6 @@ router.get("/:id", (req, res) => {
     }
   );
 });
+
 
 module.exports = router;
